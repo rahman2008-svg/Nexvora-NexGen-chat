@@ -1,43 +1,53 @@
-from flask import Flask, request, jsonify
-from flask_cors import CORS
-import subprocess
-import os
-import wikipediaapi
+from flask import Flask, request, jsonify, send_from_directory
+import subprocess, os
+import wikipedia
 
 app = Flask(__name__)
-CORS(app)
 
-MODEL_PATH = os.path.join(os.path.dirname(__file__), "models", "phi-2.gguf")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+FRONTEND_DIR = os.path.join(BASE_DIR, "../frontend")
+MODEL_PATH = os.path.join(BASE_DIR, "models/phi-2.gguf")
+LLAMA_BIN = os.path.join(BASE_DIR, "main")
 
-wiki = wikipediaapi.Wikipedia(
-    language='en',
-    user_agent='NexvoraAI/2.0'
-)
+@app.route("/", defaults={"path": ""})
+@app.route("/<path:path>")
+def serve_frontend(path):
+    if path != "" and os.path.exists(os.path.join(FRONTEND_DIR, path)):
+        return send_from_directory(FRONTEND_DIR, path)
+    else:
+        return send_from_directory(FRONTEND_DIR, "index.html")
 
-def run_llm(prompt):
+@app.route("/wiki", methods=["GET"])
+def wiki_search():
+    query = request.args.get("q", "")
+    if not query:
+        return jsonify({"error": "No query provided"}), 400
     try:
-        result = subprocess.check_output(
-            ["./main", "-m", MODEL_PATH, "-p", prompt, "-n", "200"],
-            stderr=subprocess.STDOUT
-        )
-        return result.decode("utf-8")
+        summary = wikipedia.summary(query, sentences=2)
+        return jsonify({"result": summary})
     except Exception as e:
-        return f"LLM Error: {str(e)}"
+        return jsonify({"error": str(e)})
 
-@app.route("/chat", methods=["POST"])
-def chat():
+@app.route("/ai", methods=["POST"])
+def ai_query():
     data = request.json
-    user_input = data.get("message", "")
-
-    llm = run_llm(user_input)
-
-    page = wiki.page(user_input)
-    wiki_data = page.summary[:500] if page.exists() else "No Wikipedia info found."
-
-    return jsonify({
-        "llm": llm,
-        "wiki": wiki_data
-    })
+    prompt = data.get("prompt", "")
+    if not prompt:
+        return jsonify({"error": "No prompt provided"}), 400
+    if not os.path.exists(LLAMA_BIN):
+        return jsonify({"error": "LLM binary not found"}), 500
+    try:
+        result = subprocess.run(
+            [LLAMA_BIN, "-m", MODEL_PATH, "-p", prompt],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            timeout=30
+        )
+        output = result.stdout if result.stdout else result.stderr
+        return jsonify({"result": output})
+    except Exception as e:
+        return jsonify({"error": str(e)})
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5050)
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5050)))

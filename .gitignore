@@ -1,4 +1,4 @@
-backend/llama.cpp/
-backend/main
-*.save
+__pycache__/
 *.pyc
+backend/models/*
+backend/main

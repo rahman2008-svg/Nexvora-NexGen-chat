@@ -1,23 +1,17 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Nexvora AI</title>
-    <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <title>Nexvora NexGen AI Chat</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-
-<div class="chat-container">
-    <h1>Nexvora AI 🤖</h1>
-
-    <div id="chat-box"></div>
-
-    <div class="input-box">
-        <input id="msg" placeholder="Ask anything..." />
-        <button onclick="send()">Send</button>
-    </div>
-</div>
-
-<script src="script.js"></script>
-
+  <div class="container">
+    <h1>Nexvora NexGen AI Chat</h1>
+    <textarea id="prompt" placeholder="Type your message..."></textarea>
+    <button id="send">Send</button>
+    <div id="chat"></div>
+  </div>
+  <script src="script.js"></script>
 </body>
 </html>
