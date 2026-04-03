@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "Starting Nexvora AI..."
+echo "🚀 Starting Nexvora AI..."
 
 cd backend
 python app.py &

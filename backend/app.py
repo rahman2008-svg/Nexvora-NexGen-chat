@@ -2,29 +2,42 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import subprocess
 import os
+import wikipediaapi
 
 app = Flask(__name__)
 CORS(app)
 
-LLAMA_CLI_PATH = "/data/data/com.termux/files/home/llama.cpp/build/bin/llama-cli"
-MODEL_PATH = "/data/data/com.termux/files/home/ai_app/models/phi-2.gguf"
+MODEL_PATH = os.path.join(os.path.dirname(__file__), "models", "phi-2.gguf")
+
+wiki = wikipediaapi.Wikipedia(
+    language='en',
+    user_agent='NexvoraAI/2.0'
+)
+
+def run_llm(prompt):
+    try:
+        result = subprocess.check_output(
+            ["./main", "-m", MODEL_PATH, "-p", prompt, "-n", "200"],
+            stderr=subprocess.STDOUT
+        )
+        return result.decode("utf-8")
+    except Exception as e:
+        return f"LLM Error: {str(e)}"
 
 @app.route("/chat", methods=["POST"])
 def chat():
     data = request.json
-    message = data.get("message", "")
-    if not message:
-        return jsonify({"reply": "No message received."})
-    try:
-        result = subprocess.run(
-            [LLAMA_CLI_PATH, "-m", MODEL_PATH, "-p", message, "-n", "100"],
-            capture_output=True, text=True, check=True
-        )
-        output = result.stdout.split(">")[-1].strip()
-    except Exception as e:
-        output = f"Error: {e}"
-    return jsonify({"reply": output})
+    user_input = data.get("message", "")
+
+    llm = run_llm(user_input)
+
+    page = wiki.page(user_input)
+    wiki_data = page.summary[:500] if page.exists() else "No Wikipedia info found."
+
+    return jsonify({
+        "llm": llm,
+        "wiki": wiki_data
+    })
 
 if __name__ == "__main__":
-    port = int(os.environ.get("BACKEND_PORT", 5050))
-    app.run(host="0.0.0.0", port=port)
+    app.run(host="0.0.0.0", port=5050)
